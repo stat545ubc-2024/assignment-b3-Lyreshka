@@ -67,5 +67,5 @@ To install the **MethaneData** package from GitHub, use:
 ```R
 remotes::install_github("Lyreshka/MethaneData")
 ```
-For more information visit https://github.com/Lyreshka/MethaneData
+For more information on data proscessing visit https://github.com/Lyreshka/MethaneData
 
