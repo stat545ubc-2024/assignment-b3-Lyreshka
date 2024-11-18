@@ -1,0 +1,12 @@
+library(shiny)
+library(leaflet)
+library(DT)
+library(ggplot2)
+library('rsconnect')
+remotes::install_github("Lyreshka/MethaneData")
+library(MethaneData)
+
+combined_data <- load_soilchamber_1()
+data.2 <- load_soilchamber_2()
+data.3 <- load_beringian_wetlands()
+data.4 <- load_annual_estimates()
