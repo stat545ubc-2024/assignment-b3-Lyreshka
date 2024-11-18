@@ -36,6 +36,8 @@ This app uses multiple datasets related to methane fluxes:
 
 All datasets are publicly accessible via PANGAEA and acknowledged with proper citations. The app processes these data through the `MethaneData` package, ensuring an open and reproducible workflow.
 
+Felden, J; Möller, L; Schindler, U; Huber, R; Schumacher, S; Koppe, R; Diepenbroek, M; Glöckner, FO (2023): PANGAEA – Data Publisher for Earth & Environmental Science. Scientific Data, 10(1), 347, https://doi.org/10.1038/s41597-023-02269-x
+
 ## How to Run the App Locally
 
 To run this app locally:
@@ -44,18 +46,26 @@ To run this app locally:
 2. Ensure that you have installed the necessary R packages (`shiny`, `leaflet`, `ggplot2`, `DT`, etc.).
 3. Run the app using the `shiny::runApp()` function or by opening the `app.R` file in RStudio and clicking **Run App**.
 
-## Tagging a Release
+## The `MethaneData` Package
 
-To create a release for submission:
+The **MethaneData** package is a custom R package designed to facilitate the loading and processing of methane flux datasets used in this app. This package provides a streamlined way to load the datasets into your R environment, ensuring a consistent and reproducible workflow for methane data analysis.
 
-1. Navigate to your GitHub repository.
-2. Click on **Releases** > **Draft a new release**.
-3. Enter a tag version (e.g., `v1.0`) and release title.
-4. Write a brief description of the release.
-5. Click **Publish release**.
+### Features of the `MethaneData` Package
 
-Ensure that the repository is accessible to your instructors by setting it to public or adding them as collaborators.
+- Functions to load pre-processed datasets such as:
+  - `load_soilchamber_1()` for high-resolution CH4 flux data.
+  - `load_soilchamber_2()` for manual CH4 measurements.
+  - `load_beringian_wetlands()` for CH4 flux data from Beringian coastal wetlands.
+  - `load_annual_estimates()` for annual CH4 flux estimates from various wetland and upland ecosystems.
+- Ensures data integrity by storing datasets in a standardized format within the package and thus no data downloading on your part!
+  
 
----
+### Installation
 
-This README should provide all necessary information for your submission, covering the app link, description, dataset acknowledgements, and steps for tagging a release.
+To install the **MethaneData** package from GitHub, use:
+
+```R
+remotes::install_github("Lyreshka/MethaneData")
+```
+For more information visit https://github.com/Lyreshka/MethaneData
+
