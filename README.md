@@ -12,6 +12,7 @@ You can access the deployed Shiny app at the following link:
 1. Visit the **updated** [Methane Flux Data Explorer](https://lyreshka.shinyapps.io/MethaneFluxExplorer/).
 2. Select a dataset and choose your desired visualizations or filters.
 3. Explore methane flux trends, analyze ecosystem variations, and export insights.
+4. This version of the Methane Flux Data Explorer comes with preloaded datasets, eliminating the need for external package dependencies.
 
 ## New Features
 
