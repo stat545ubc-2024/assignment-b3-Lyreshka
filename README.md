@@ -5,7 +5,7 @@ Welcome to the **Methane Flux Data Explorer** repository! This project combines 
 ## Running Instance of the Shiny App
 
 You can access the deployed Shiny app at the following link:
-[Explore the Methane Flux Data Explorer](https://lyreshka.shinyapps.io/MethaneFluxDataExplorer/)
+[Explore the Methane Flux Data](https://lyreshka.shinyapps.io/MethaneFluxDataExplorer/)
 
 ## For the uptadated version (Assignemnt B4):
 
