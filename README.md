@@ -28,7 +28,7 @@ You can access the deployed Shiny app at the following link:
   - Gain insights into dataset sources and methodologies directly in the app.
 
 
-## Datasets Used and Acknowledgements
+## Datasets Acknowledgements
 
 This app uses multiple datasets related to methane fluxes:
 
