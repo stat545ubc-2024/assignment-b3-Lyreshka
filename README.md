@@ -1,23 +1,32 @@
 # Methane Flux Data Explorer
 
-Welcome to the **Methane Flux Data Explorer** repository! This project features an interactive Shiny app for visualizing and analyzing methane (CH4) flux data from various ecosystems.
+Welcome to the **Methane Flux Data Explorer** repository! This project combines powerful datasets, user-friendly design, and interactive tools to enable anyone to explore the dynamics of methane fluxes.
 
 ## Running Instance of the Shiny App
 
 You can access the deployed Shiny app at the following link:
 [Explore the Methane Flux Data Explorer](https://lyreshka.shinyapps.io/MethaneFluxDataExplorer/)
 
-## Description of the App
+## For the uptadated version (Assignemnt B4):
 
-The Methane Flux Data Explorer allows users to:
+1. Visit the [Methane Flux Explorer App](https://lyreshka.shinyapps.io/MethaneFluxExplorer/).
+2. Select a dataset and choose your desired visualizations or filters.
+3. Explore methane flux trends, analyze ecosystem variations, and export insights.
 
-- View methane flux data on an interactive map with color-coded markers.
-- Filter data by date range, ecosystem type, vegetation cover, and CH4 concentration range.
-- Explore trends over time using customizable plots.
-- Inspect data tables and summaries for detailed analysis.
-- Access descriptions and metadata for various methane flux datasets.
+## New Features
 
-This app is designed to support environmental researchers, students, and enthusiasts interested in studying greenhouse gas dynamics across diverse ecosystems.
+- 📊 **Interactive Visualizations**:
+  - Line and scatter plots for temporal trends.
+  - Boxplots summarizing CH₄ flux by vegetation or ecosystem type.
+  - Temperature vs. CH₄ scatter plots.
+- 🗺️ **Dynamic Mapping**:
+  - Visualize CH₄ flux data points on an interactive Leaflet map.
+  - Filter by dataset, date range, vegetation type, or flux range.
+- 📄 **Comprehensive Data Tables**:
+  - Explore and filter methane datasets with sortable and searchable tables.
+- 🔍 **Detailed Metadata**:
+  - Gain insights into dataset sources and methodologies directly in the app.
+
 
 ## Datasets Used and Acknowledgements
 
