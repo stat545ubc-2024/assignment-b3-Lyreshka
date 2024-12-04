@@ -2,17 +2,61 @@ library(shiny)
 library(leaflet)
 library(DT)
 library(ggplot2)
-library('rsconnect')
-# remotes::install_github("Lyreshka/MethaneData")
-library(MethaneData)
+library(rsconnect)
+library(plotly)
+library(ggridges)
+library(bslib)
+
+combined_data <- readRDS("data/SoilChamber_1.rds")
+data.2 <- readRDS("data/SoilChamber_2.rds")
+data.3 <- readRDS("data/Beringian_coastal_wetlands_CH4.rds")
+data.4 <- readRDS("data/Annual_CH4_estimates.rds")
+
+# addition of dates based on the references - needed for graphs 
+
+data.3$Date <- as.Date(
+  sapply(data.3$Reference, function(ref) {
+    year <- regmatches(ref, regexpr("\\b\\d{4}\\b", ref))
+    if (length(year) > 0) {
+      return(paste0(year, "-06-01"))
+    } else {
+      return(NA)
+    }
+  }),
+  format = "%Y-%m-%d"
+)
 
 
-combined_data <- load_soilchamber_1()
-data.2 <- load_soilchamber_2()
-data.3 <- load_beringian_wetlands()
-data.4 <- load_annual_estimates()
+# start of the app (ui)
 
 ui <- fluidPage(
+  # colors 
+  theme = bs_theme(
+    base_font = font_google("Open Sans"),
+    heading_font = font_google("Roboto"),
+    primary = "#EEAD0E",
+    secondary = "#2196F3",
+    success = "#4CAF50",
+    info = "#2196F3",
+    warning = "#FFC107",
+    danger = "#F44336",
+    light = "#FAFAFA",
+    dark = "#333333"
+  ),
+
+  # custom CSS
+  tags$head(
+    tags$style(HTML("
+      .titlePanel { padding: 60px 50px; background-color: #f5f5f5; border-bottom: 2px solid}
+       .navbar .navbar-nav { margin-top: 10px;}
+      body { font-family: 'Open Sans', sans-serif; background-color: #FAFAFA; color: #333; }
+      h1, h2, h3 { font-family: 'Roboto', sans-serif; color: #6B8E23; }
+      .btn { background-color: #2196F3; color: #ffffff; }
+      .btn:hover { background-color: #1976D2; }
+      .shiny-input-container { margin-bottom: 15px; }
+      .well { background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    "))
+  ),
   titlePanel("Methane (CH4) Flux Data Explorer"),
   sidebarLayout(
     sidebarPanel(
@@ -24,6 +68,9 @@ ui <- fluidPage(
       selectInput("ch4Type", "Select CH4 Variable:",
                   choices = NULL),
       checkboxInput("useDateFilter", "Apply Date Filter", value = FALSE),
+      ## my favorite thing about this app
+      sliderInput("fluxRange", "CH4 Flux Concentration Range:",
+                  min = -50, max = 50, value = c(-10, 10)),
       conditionalPanel(
         condition = "input.useDateFilter == true",
         dateRangeInput("dateRange", "Select Date Range:",
@@ -44,24 +91,51 @@ ui <- fluidPage(
         checkboxGroupInput("landCover", "Select Vegetation:",
                            choices = NULL)
       ),
-      # my favorite thing about this app
-      sliderInput("fluxRange", "CH4 Flux Concentration Range:",
-                  min = -50, max = 50, value = c(-10, 10))
+
+      uiOutput("plotTypeSelector")
     ),
     mainPanel(
       tabsetPanel(
         id = "mainTabs",
         tabPanel("About",
-                 h3("Welcome to the Methane (CH4) Flux Data Explorer!"),
-                 p("Dive into the world of methane flux analysis with my interactive application. Here, you can explore a variety of methane datasets from upland soils, coastal wetlands, and temperate to Arctic ecosystems. Whether you're interested in high-resolution data or annual flux estimates, this app provides the tools to visualize, analyze, and interpret methane emissions and consumption trends."),
-                 p("Use the map to pinpoint data locations, examine detailed tables for in-depth analysis, and track trends over time with our intuitive plots. This explorer is designed to support researchers, students, and environmental enthusiasts in understanding greenhouse gas dynamics in diverse ecosystems. Enjoy your exploration!"),
-                 p("Created by Lyreshka C.M.")
-        ),
+                 tags$div(class = "about-section",
+                          h3("Welcome to the Methane (CH4) Flux Data Explorer!"),
+                          h4("Hello!"),
+                          p("The Methane Flux Data Explorer is an interactive tool designed for the exploration, visualization,
+          and analysis of methane fluxes across various ecosystems. This application aims to support anyone
+          in understanding the complex dynamics of methane dynamics and their implications on climate change
+          and ecosystem health."),
+
+                          h4("How to Use This Tool"),
+                          tags$ul(
+                            tags$li("Select a Dataset: Choose from any of the datasets to explore different aspects of methane fluxes."),
+                            tags$li("Visualize Data: Use the map to visualize geographic locations, differences across types of
+              vegetation or soil, and more."),
+                            tags$li("Detailed Analysis: Access detailed tables for in-depth analysis of the data, including methane
+              concentrations, vegetation types, and other ecosystem parameters."),
+                            tags$li("Customize Views: Apply filters such as date ranges, CH4 concentration, or vegetation types to guide
+              the information to your specific research need.")
+                          ),
+
+                          h4("Features"),
+                          tags$ul(
+                            tags$li("Interactive Maps: Geographically explore the distribution of methane fluxes."),
+                            tags$li("Dynamic Graphs: Generate customizable plots to visualize data trends."),
+                            tags$li("Data Tables: Examine detailed, filterable tables of the dataset entries."),
+                            tags$li("Research Insights: Delve into synthesized research findings and data summaries.")
+                          ),
+
+                          tags$div(style = "text-align: center;",
+                                   p("Enjoy!"),
+                                   strong("Lyreshka C.M.")
+                          )
+                 )
+         ),
         tabPanel("Map", leafletOutput("map")),
+        tabPanel("Trends", plotlyOutput("trendPlotInteractive")),
         tabPanel("Data Table", DTOutput("dataTable")),
-        tabPanel("Trends", plotOutput("trendPlot")),
         tabPanel("Overview",
-                 verbatimTextOutput("overview"),
+                 tableOutput("overview"),
                  textOutput("citation")),
         tabPanel("Research",
 
@@ -86,6 +160,8 @@ ui <- fluidPage(
   )
 )
 
+
+# Server (backhand)
 server <- function(input, output, session) {
   # Observe
   observe({
@@ -115,13 +191,22 @@ server <- function(input, output, session) {
                                choices = unique(dataset$Vegetation_Cover),
                                selected = unique(dataset$Vegetation_Cover))
     }
+
+    if (input$mainTabs == "interactive") {
+      updateSelectInput(session, "plotType",
+                        choices = c("Line Plot" = "line", "Scatter Plot" = "scatter"),
+                        selected = "line")
+    } else if (input$mainTabs == "static") {
+      updateSelectInput(session, "plotType",
+                        choices = c("Ridgeline Plot" = "ridge"),
+                        selected = "ridge")
+    }
   })
 
   # Reactive function for data filtering
-  # Feature 2: Filter dataset by ecosystem type/vegetation
+  # Feature 1: Filter dataset by ecosystem type/vegetation
   # Purpose: Helps users focus on specific ecosystem data relevant to their research or interest.
   # works on map as well and data table
-
 
   filteredData <- reactive({
     dataset <- switch(input$dataset,
@@ -130,29 +215,44 @@ server <- function(input, output, session) {
                       "data.3" = data.3,
                       "data.4" = data.4)
 
+    # Check if CH4 variable exists before filtering
+    if (!input$ch4Type %in% colnames(dataset)) {
+      return(data.frame())  # Return an empty data frame if invalid selection
+    }
+
+    # Filter based on date range
     if (input$useDateFilter && "Date" %in% colnames(dataset)) {
       dataset <- dataset[dataset$Date >= input$dateRange[1] & dataset$Date <= input$dateRange[2], ]
     }
 
-    if (input$dataset == "data.4" && !is.null(input$ecosystemType) && "Standardized_Ecosystem_Type" %in% colnames(dataset)) {
-      dataset <- dataset[dataset$Standardized_Ecosystem_Type %in% input$ecosystemType, ]
-    } else if (input$dataset == "data.3" && !is.null(input$standardizedType) && "Standardized_Type" %in% colnames(dataset)) {
-      dataset <- dataset[dataset$Standardized_Type %in% input$standardizedType, ]
-    } else if ((input$dataset == "combined_data" || input$dataset == "data.2") && !is.null(input$landCover) && "Vegetation_Cover" %in% colnames(dataset)) {
-      dataset <- dataset[dataset$Vegetation_Cover %in% input$landCover, ]
+    # Filter based on ecosystem type or vegetation cover
+    if (input$dataset == "data.4" && "Standardized_Ecosystem_Type" %in% colnames(dataset)) {
+      if (!is.null(input$ecosystemType)) {
+        dataset <- dataset[dataset$Standardized_Ecosystem_Type %in% input$ecosystemType, ]
+      }
+    } else if (input$dataset == "data.3" && "Standardized_Type" %in% colnames(dataset)) {
+      if (!is.null(input$standardizedType)) {
+        dataset <- dataset[dataset$Standardized_Type %in% input$standardizedType, ]
+      }
+    } else if ((input$dataset == "combined_data" || input$dataset == "data.2") && "Vegetation_Cover" %in% colnames(dataset)) {
+      if (!is.null(input$landCover)) {
+        dataset <- dataset[dataset$Vegetation_Cover %in% input$landCover, ]
+      }
     }
 
+    # Filter based on CH4 flux concentration range
     if (input$ch4Type %in% colnames(dataset)) {
       dataset <- dataset[!is.na(dataset[[input$ch4Type]]) &
                            dataset[[input$ch4Type]] >= input$fluxRange[1] &
                            dataset[[input$ch4Type]] <= input$fluxRange[2], ]
     }
 
-    dataset
+    return(dataset)
   })
 
+
   # Render map output
-  # Feature 1: Interactive map that displays CH4 flux data with color-coded markers
+  # Feature 2: Interactive map that displays CH4 flux data with color-coded markers: Source = Red, Sink = Green
   # Purpose: Allows users to visualize the geographic distribution of CH4 flux values,
   # providing insight into spatial patterns.
 
@@ -192,50 +292,110 @@ server <- function(input, output, session) {
   # Feature 3: Time-series plot for CH4 flux trends
   # Purpose: Enables users to track changes in CH4 flux over time, facilitating temporal analysis.
   # also can be filtered by ecosystem or Vegetation type depending on data set and flux concentration
-  # makes it fun to play with, maybe in the future I could have different filters depending on dataset
-  # but requires more clean up and data standardization (especially with vegetation)
+  
+  # V2 additions
+  # makes it fun to play as it includes a scatter plot, box plot, line plot, and a trend analysis with temperature
+  # Can be adjusted by filtering, by flux range, and date 
+  # all plots are now interactive so they give you more info upon placing the cursor on top of them and 
+  # can be exported as a png, zoomed in and more  
+  
+  
+  
+  output$plotTypeSelector <- renderUI({
+    if (input$dataset %in% c("combined_data", "data.2", "data.4")) {
+      selectInput("plotType", "Select Graph Type:",
+                  choices = c("Box Plot" = "box",
+                              "Line Plot" = "line",
+                              "Scatter Plot" = "scatter",
+                              "Temperature vs CH4 Flux Plot" = "tempCH4"),
+                  selected = "box")
+    } else {
+      selectInput("plotType", "Select Graph Type:",
+                  choices = c("Box Plot" = "box",
+                              "Line Plot" = "line",
+                              "Scatter Plot" = "scatter"),
+                  selected = "box")
+    }
+  })
 
 
-  output$trendPlot <- renderPlot({
+
+
+  output$trendPlotInteractive <- renderPlotly({
+    req(input$plotType %in% c("box", "line", "scatter", "tempCH4"))
     data_plot <- filteredData()
 
-    if (input$ch4Type %in% colnames(data_plot)) {
-      if ("Date" %in% colnames(data_plot) && !all(is.na(data_plot$Date))) {
-        data_plot$Date <- as.Date(data_plot$Date, origin = "1970-01-01")
-
-        ggplot(data_plot, aes(x = Date, y = .data[[input$ch4Type]], color = .data[[input$ch4Type]])) +
-          geom_line() +
-          scale_color_gradient2(low = "darkgreen", mid = "gray", high = "darkred", midpoint = 0) +
-          theme_minimal() +
-          labs(title = "CH4 Trend Analysis", x = "Date",
-               y = paste("CH4 Value (", input$ch4Type, ")", sep = ""))
-      } else {
-        ggplot(data_plot, aes(x = seq_along(data_plot[[input$ch4Type]]), y = .data[[input$ch4Type]],
-                              color = .data[[input$ch4Type]])) +
-          geom_line() +
-          scale_color_gradient2(low = "darkgreen", mid = "gray", high = "darkred", midpoint = 0) +
-          theme_minimal() +
-          labs(title = "CH4 Trend Analysis (Index)", x = "Index",
-               y = paste("CH4 Value (", input$ch4Type, ")", sep = ""))
-      }
+    if (!"Date" %in% colnames(data_plot)) {
+      return(NULL)
     }
+
+    data_plot$Date <- as.Date(data_plot$Date, origin = "1970-01-01")
+
+    vegetation_column <- switch(input$dataset,
+                                "combined_data" = "Vegetation_Cover",
+                                "data.2" = "Vegetation_Cover",
+                                "data.3" = "Standardized_Type",
+                                "data.4" = "Standardized_Ecosystem_Type")
+
+    temp_column <- switch(input$dataset,
+                          "combined_data" = "Air_Temp_C",
+                          "data.2" = "Soil_Temp_Flux_C",
+                          "data.4" = "Mean_Annual_Air_Temp_C",
+                          NULL)
+
+    if (input$plotType == "line" || input$plotType == "scatter") {
+      plot <- ggplot(data_plot, aes(x = Date, y = .data[[input$ch4Type]], color = .data[[vegetation_column]])) +
+        {if (input$plotType == "line") geom_line() else geom_point()} +
+        labs(title = paste(input$plotType, "Plot of CH4 Flux Over Time"))
+    } else if (input$plotType == "box") {
+      plot <- ggplot(data_plot, aes(x = .data[[vegetation_column]], y = .data[[input$ch4Type]], fill = .data[[vegetation_column]])) +
+        geom_boxplot() +
+        labs(title = "Box Plot of CH4 Flux by Vegetation Type")
+    } else if (input$plotType == "tempCH4" && !is.null(temp_column)) {
+      data_plot <- data_plot[!is.na(data_plot[[temp_column]]),]  # Filter out NA temp values
+      plot <- ggplot(data_plot, aes(x = .data[[temp_column]], y = .data[[input$ch4Type]], color = .data[[vegetation_column]])) +
+        geom_point() +
+        geom_smooth(method = "lm") +
+        labs(title = "Temperature vs. CH4 Flux")
+    }
+
+    ggplotly(plot)
   })
 
-  # Render overview
-  # Gives a quick overview of the data (min, mean, max, q1, q3)
-  # (I dont really count it as feature but its insightful to me)
-  # the reason is because only a select portion of users would find it insightful otherwise its just ehhh
+  getDataset <- function(dataset_input) {
+    switch(input$dataset,
+           "combined_data" = combined_data,
+           "data.2" = data.2,
+           "data.3" = data.3,
+           "data.4" = NULL
 
-  output$overview <- renderPrint({
-    dataset <- filteredData()
-    if (nrow(dataset) > 0) {
-      summary(dataset)
-    } else {
-      print("No data available for the selected filters.")
+    )
+  }
+
+  output$overview <- renderTable({
+    if (input$dataset == "data.4") {
+      return(data.frame(Apologies = "Summary not available for this dataset."))
     }
-  })
+    data <- getDataset()
 
-  # Display citation
+    # Calculate summary statistics
+    summary_df <- data.frame(
+      Variable = colnames(data),
+      Mean = sapply(data, function(x) if(is.numeric(x)) mean(x, na.rm = TRUE) else NA),
+      Median = sapply(data, function(x) if(is.numeric(x)) median(x, na.rm = TRUE) else NA),
+      StdDev = sapply(data, function(x) if(is.numeric(x)) sd(x, na.rm = TRUE) else NA),
+      MissingValues = sapply(data, function(x) sum(!is.na(x)))
+    )
+
+    rownames(summary_df) <- NULL
+
+    # Return
+    summary_df
+  }, align = 'l')  # align left
+
+
+
+  # citation
   output$citation <- renderText({
     dataset <- input$dataset
     citations <- list(
@@ -251,4 +411,3 @@ server <- function(input, output, session) {
 
 
 shinyApp(ui = ui, server = server)
-
